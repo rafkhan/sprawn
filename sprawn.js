@@ -3,20 +3,38 @@
 var q = require('q');
 var cpSpawn = require('child_process').spawn;
 
-function sprawn(cmd, args) {
+function runProc(cmd, args, cb) {
   var d = q.defer();
-
   var proc = cpSpawn(cmd, args);
-
-  proc.on('close', function(code) {
-    if(code === 0) {
-      d.resolve(proc);
-    } else {
-      d.reject(proc);
-    }
-  });
-
+  proc.on('close', cb(proc, d));
   return d.promise;
 }
 
-exports = module.exports = sprawn;
+function exec(cmd, args) {
+  function handlePromise(proc, deferred) {
+    return function (code) {
+      if(code === 0) {
+        deferred.resolve(proc);
+      } else {
+        deferred.reject(proc);
+      }
+    };
+  }
+
+  return runProc(cmd, args, handlePromise);
+}
+
+function resolve(cmd, args) {
+  function handlePromise(proc, deferred) {
+    return function (code) {
+      deferred.resolve(proc);
+    };
+  }
+
+  return runProc(cmd, args, handlePromise);
+}
+
+exports = module.exports = {
+  exec: exec,
+  resolve: resolve
+};
